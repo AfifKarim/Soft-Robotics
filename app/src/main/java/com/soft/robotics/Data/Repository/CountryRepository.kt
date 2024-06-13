@@ -8,21 +8,21 @@ import com.soft.robotics.Data.Remote.Api.ApiClient
 import com.soft.robotics.Data.Remote.Api.ApiService
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import javax.inject.Inject
 
-class CountryRepository(private val application: Application) {
-
-    private val countryDao: CountryDao = DB.getInstance(application).countryDao()
-    private val apiService: ApiService = ApiClient.getInstance().apiService
-
-    suspend fun refreshCountries(): List<Country> {
-        return try {
-            val countryResponses = apiService.getCountries()
-            val countries = countryResponses.map { Country(it.code, it.name) }
-            countryDao.insertAll(countries)
-            countries
-        } catch (e: Exception) {
-            e.printStackTrace()
-            emptyList()
+class CountryRepository @Inject constructor(
+    private val countryDao: CountryDao,
+    private val apiService: ApiService
+) {
+    suspend fun refreshCountries() {
+        withContext(Dispatchers.IO) {
+            try {
+                val countryResponses = apiService.getCountries()
+                val countries = countryResponses.map { Country(it.code, it.name) }
+                countryDao.insertAll(countries)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         }
     }
 

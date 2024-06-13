@@ -11,7 +11,9 @@ import com.soft.robotics.R
 import com.soft.robotics.UI.Adapter.CountryAdapter
 import com.soft.robotics.UI.ViewModel.CountryListViewModel
 import com.soft.robotics.databinding.FragmentCountryListBinding
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class CountryListFragment : Fragment(R.layout.fragment_country_list) {
 
     private val viewModel: CountryListViewModel by viewModels()
@@ -26,62 +28,28 @@ class CountryListFragment : Fragment(R.layout.fragment_country_list) {
         binding.recyclerView.layoutManager = LinearLayoutManager(requireContext())
         binding.recyclerView.adapter = adapter
 
+        observeViewModel(adapter)
+
         viewModel.networkStatus.observe(viewLifecycleOwner, Observer { isNetworkAvailable ->
             if (isNetworkAvailable) {
-                viewModel.countries.observe(viewLifecycleOwner, Observer { countries ->
-                    if (countries.isNullOrEmpty()) {
-                        viewModel.localCountries.observe(viewLifecycleOwner, Observer { localCountries ->
-                            if (localCountries.isNullOrEmpty()) {
-                                binding.noDataTextView.visibility = View.VISIBLE
-                                binding.recyclerView.visibility = View.GONE
-                                Toast.makeText(requireContext(), "Connect To Internet To Get Data.", Toast.LENGTH_LONG).show()
-                            } else {
-                                binding.noDataTextView.visibility = View.GONE
-                                binding.recyclerView.visibility = View.VISIBLE
-                                adapter.submitList(localCountries)
-                                Toast.makeText(requireContext(), "No network available. Showing local data.", Toast.LENGTH_LONG).show()
-                            }
-                        })
-                    } else {
-                        binding.noDataTextView.visibility = View.GONE
-                        binding.recyclerView.visibility = View.VISIBLE
-                        adapter.submitList(countries)
-                    }
-                })
+                viewModel.refreshCountries()
             } else {
+                Toast.makeText(requireContext(), "No network available. Showing Local Data.", Toast.LENGTH_LONG).show()
                 viewModel.fetchLocalCountries()
             }
         })
+    }
 
-//        viewModel.countries.observe(viewLifecycleOwner, Observer { countries ->
-//            if (countries.isNullOrEmpty()) {
-//                binding.noDataTextView.visibility = View.VISIBLE
-//                binding.recyclerView.visibility = View.GONE
-//            } else {
-//                binding.noDataTextView.visibility = View.GONE
-//                binding.recyclerView.visibility = View.VISIBLE
-//                adapter.submitList(countries)
-//            }
-//        })
-
-//        viewModel.networkStatus.observe(viewLifecycleOwner, Observer { isNetworkAvailable ->
-//            if (isNetworkAvailable) {
-//                viewModel.refreshCountries()
-//            } else {
-//                viewModel.fetchLocalCountries()
-//            }
-//        })
-//
-//        viewModel.localCountries.observe(viewLifecycleOwner, Observer { localCountries ->
-//            if (localCountries.isNullOrEmpty()) {
-//                Toast.makeText(requireContext(), "Connect To Internet To Get Data.", Toast.LENGTH_LONG).show()
-//            } else {
-//                Toast.makeText(requireContext(), "No network available. Showing local data.", Toast.LENGTH_LONG).show()
-//                adapter.submitList(localCountries)
-//            }
-//        })
-
-//        viewModel.refreshCountries() // Fetch and update data on view created
+    private fun observeViewModel(adapter: CountryAdapter) {
+        viewModel.countries.observe(viewLifecycleOwner, Observer { countries ->
+            if (countries.isNullOrEmpty()) {
+                binding.noDataTextView.visibility = View.VISIBLE
+                binding.recyclerView.visibility = View.GONE
+                Toast.makeText(requireContext(), "No data available. Connect to the internet to fetch data.", Toast.LENGTH_LONG).show()
+            } else {
+                adapter.submitList(countries)
+            }
+        })
     }
 
     override fun onDestroyView() {

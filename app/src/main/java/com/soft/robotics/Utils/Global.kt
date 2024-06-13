@@ -39,26 +39,4 @@ object Global {
         val activeNetworkInfo = connectivityManager.activeNetworkInfo
         return activeNetworkInfo != null && activeNetworkInfo.isConnected
     }
-
-    // Method to check if there are changes between API response and local database
-    suspend fun checkForDataChanges(application: Application): Boolean {
-        return withContext(Dispatchers.IO) {
-            try {
-                val apiService = ApiClient.getInstance().apiService
-                val countryResponses = apiService.getCountries()
-                val localCountries = DB.getInstance(application).countryDao().getLocalCountries()
-
-                // Compare API response with local database
-                val remoteCodes = countryResponses.map { it.code }
-                val localCodes = localCountries.map { it.code }
-
-                // Check if there are any new or updated entries
-                val hasChanges = remoteCodes.any { !localCodes.contains(it) }
-                hasChanges
-            } catch (e: Exception) {
-                e.printStackTrace()
-                false
-            }
-        }
-    }
 }

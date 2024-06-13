@@ -6,13 +6,19 @@ import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import com.soft.robotics.Data.Local.Entities.Country
-import com.soft.robotics.Data.Repository.CountryRepository
+import com.soft.robotics.Domain.UseCase.FetchLocalCountriesUseCase
+import com.soft.robotics.Domain.UseCase.RefreshCountriesUseCase
 import com.soft.robotics.Utils.Global
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
+import javax.inject.Inject
 
-class CountryListViewModel(application: Application) : AndroidViewModel(application) {
-
-    private val repository: CountryRepository = CountryRepository(application)
+@HiltViewModel
+class CountryListViewModel @Inject constructor(
+    application: Application,
+    private val refreshCountriesUseCase: RefreshCountriesUseCase,
+    private val fetchLocalCountriesUseCase: FetchLocalCountriesUseCase
+) : AndroidViewModel(application) {
 
     private val _countries = MutableLiveData<List<Country>>()
     val countries: LiveData<List<Country>> = _countries
@@ -20,24 +26,14 @@ class CountryListViewModel(application: Application) : AndroidViewModel(applicat
     private val _networkStatus = MutableLiveData<Boolean>()
     val networkStatus: LiveData<Boolean> = _networkStatus
 
-    private val _localCountries = MutableLiveData<List<Country>>()
-    val localCountries: LiveData<List<Country>> = _localCountries
-
     init {
         _networkStatus.value = Global.isNetworkAvailable(application)
         Global.registerNetworkReceiver(application)
 
-        // Observe network status changes
         Global.networkStatus.observeForever { isNetworkAvailable ->
             _networkStatus.value = isNetworkAvailable
             if (isNetworkAvailable) {
                 refreshCountries()
-                viewModelScope.launch {
-                    val hasChanges = Global.checkForDataChanges(application)
-                    if (hasChanges) {
-                        refreshCountries()
-                    }
-                }
             } else {
                 fetchLocalCountries()
             }
@@ -51,14 +47,17 @@ class CountryListViewModel(application: Application) : AndroidViewModel(applicat
 
     fun refreshCountries() {
         viewModelScope.launch {
-            val fetchedCountries = repository.refreshCountries()
-            _countries.postValue(fetchedCountries)
+            val success = refreshCountriesUseCase()
+            if (success) {
+                val freshCountries = fetchLocalCountriesUseCase()
+                _countries.postValue(freshCountries)
+            }
         }
     }
 
     fun fetchLocalCountries() {
         viewModelScope.launch {
-            val localCountries = repository.getLocalCountries()
+            val localCountries = fetchLocalCountriesUseCase()
             _countries.postValue(localCountries)
         }
     }
